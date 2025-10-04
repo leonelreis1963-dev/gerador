@@ -1,14 +1,11 @@
-
-import type { Idea } from "../types";
-
-export async function generateIdeas(topic: string): Promise<Idea[] | null> {
+export async function editImage(imageBase64: string, mimeType: string, prompt: string): Promise<string | null> {
   try {
-    const response = await fetch('/api/generate', {
+    const response = await fetch('/api/editImage', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ topic }),
+      body: JSON.stringify({ imageBase64, mimeType, prompt }),
     });
 
     if (!response.ok) {
@@ -17,11 +14,10 @@ export async function generateIdeas(topic: string): Promise<Idea[] | null> {
     }
 
     const data = await response.json();
-    return data.ideas;
+    return data.imageBase64;
     
   } catch (error) {
-    console.error("Erro ao buscar ideias do endpoint da API:", error);
-    // Lançar o erro permite que o componente de UI o capture.
+    console.error("Erro ao buscar imagem do endpoint da API:", error);
     throw error;
   }
 }
