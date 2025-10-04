@@ -9,9 +9,20 @@ export async function editImage(imageBase64: string, mimeType: string, prompt: s
     });
 
     if (!response.ok) {
-      // Tenta extrair a mensagem de erro específica do backend.
-      const errorData = await response.json().catch(() => ({ error: 'A resposta da API não foi bem-sucedida e não contém JSON.' }));
-      throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
+      // Robust error handling: Check content type before parsing.
+      const contentType = response.headers.get('content-type');
+      let errorMessage;
+
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        errorMessage = errorData.error || `Erro HTTP: ${response.status}`;
+      } else {
+        // If not JSON, it's likely a server error (e.g., timeout, crash). Read as text.
+        const errorText = await response.text();
+        errorMessage = `Erro do servidor (${response.status}): ${errorText || 'Resposta vazia.'}`;
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
