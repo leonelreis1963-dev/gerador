@@ -8,24 +8,32 @@ export async function editImage(imageBase64: string, mimeType: string, prompt: s
       body: JSON.stringify({ imageBase64, mimeType, prompt }),
     });
 
-    if (!response.ok) {
-      // Robust error handling: Check content type before parsing.
-      const contentType = response.headers.get('content-type');
-      let errorMessage;
-
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        errorMessage = errorData.error || `Erro HTTP: ${response.status}`;
-      } else {
-        // If not JSON, it's likely a server error (e.g., timeout, crash). Read as text.
-        const errorText = await response.text();
-        errorMessage = `Erro do servidor (${response.status}): ${errorText || 'Resposta vazia.'}`;
-      }
-      
-      throw new Error(errorMessage);
+    if (!response.ok || !response.body) {
+      // Tenta ler o corpo do erro mesmo se não estiver ok
+      const errorText = await response.text();
+      throw new Error(`Erro do servidor (${response.status}): ${errorText || 'Resposta vazia.'}`);
     }
 
-    const data = await response.json();
+    // Lida com a resposta de streaming
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let result = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      result += decoder.decode(value);
+    }
+    
+    // Após receber todo o stream, analisa o resultado JSON final
+    const data = JSON.parse(result);
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
     return data.imageBase64;
     
   } catch (error) {
