@@ -9,6 +9,9 @@ type ImageState = {
   dataUrl: string;
 };
 
+const MAX_FILE_SIZE_MB = 4;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 function App() {
   const [originalImage, setOriginalImage] = useState<ImageState | null>(null);
   const [editedImage, setEditedImage] = useState<string | null>(null);
@@ -20,6 +23,15 @@ function App() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setError(`O arquivo é muito grande. Por favor, envie uma imagem com menos de ${MAX_FILE_SIZE_MB}MB.`);
+        setOriginalImage(null);
+        if(fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
@@ -51,7 +63,7 @@ function App() {
       const resultBase64 = await editImage(originalImage.base64, originalImage.mimeType, editPrompt);
       if (resultBase64) {
         // A API de edição retorna PNG ou JPG, então vamos detectar o tipo para o link
-        const imageMimeType = editPrompt.includes('transparente') ? 'image/png' : 'image/jpeg';
+        const imageMimeType = editPrompt.toLowerCase().includes('transparente') ? 'image/png' : 'image/jpeg';
         setEditedImage(`data:${imageMimeType};base64,${resultBase64}`);
       } else {
         throw new Error('A API não retornou uma imagem editada válida.');
@@ -106,6 +118,7 @@ function App() {
                   </div>
                 )}
               </div>
+              <p className="text-xs text-gray-500 text-center -mt-2">Tamanho máximo: {MAX_FILE_SIZE_MB}MB</p>
               
               {originalImage && (
                 <>

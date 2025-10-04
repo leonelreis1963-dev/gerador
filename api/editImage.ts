@@ -4,9 +4,8 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-export const config = {
-  runtime: 'edge',
-};
+// A configuração 'runtime: edge' foi REMOVIDA para usar o ambiente Node.js padrão da Vercel,
+// que é mais estável e compatível para esta tarefa.
 
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {
