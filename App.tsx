@@ -50,13 +50,17 @@ function App() {
     try {
       const resultBase64 = await editImage(originalImage.base64, originalImage.mimeType, editPrompt);
       if (resultBase64) {
-        setEditedImage(`data:image/jpeg;base64,${resultBase64}`);
+        // A API de edição retorna PNG ou JPG, então vamos detectar o tipo para o link
+        const imageMimeType = editPrompt.includes('transparente') ? 'image/png' : 'image/jpeg';
+        setEditedImage(`data:${imageMimeType};base64,${resultBase64}`);
       } else {
         throw new Error('A API não retornou uma imagem editada válida.');
       }
     } catch (err) {
       console.error(err);
-      setError('Falha ao editar a imagem. Verifique a configuração da sua chave de API na Vercel e os logs da função.');
+      // Exibe a mensagem de erro específica vinda do backend
+      const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -131,13 +135,13 @@ function App() {
               <h2 className="text-xl font-semibold text-center text-gray-300">Resultado</h2>
               <div className="h-full min-h-[360px] w-full bg-gray-900/50 rounded-lg border border-gray-700/50 flex flex-col items-center justify-center p-4">
                 {isLoading && <Spinner />}
-                {error && <p className="text-red-400 text-center">{error}</p>}
+                {error && <p className="text-red-400 text-center px-4 py-2 bg-red-900/20 rounded-lg border border-red-500/30">{error}</p>}
                 {editedImage && !isLoading && !error && (
                   <div className="flex flex-col items-center gap-4">
                     <img src={editedImage} alt="Imagem editada por IA" className="rounded-lg max-w-full h-auto shadow-lg" />
                     <a
                       href={editedImage}
-                      download={`pixshop-edit-${Date.now()}.jpg`}
+                      download={`pixshop-edit-${Date.now()}.png`}
                       className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-5 rounded-lg transition-colors duration-300 mt-2"
                     >
                       Download

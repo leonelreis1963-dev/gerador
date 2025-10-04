@@ -48,39 +48,47 @@ export default async function handler(req: Request) {
       
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      // CORREÇÃO: O modelo de edição de imagem espera o conteúdo formatado
-      // como uma mensagem de chat, dentro de um array e com um "role".
       contents: [{
         role: 'user',
         parts: [imagePart, textPart]
       }],
       config: {
-        // O modelo de edição de imagem requer que ambos os tipos sejam especificados.
         responseModalities: [Modality.IMAGE, Modality.TEXT],
       },
     });
 
+    // Tratamento de erro robusto: verifique se a API retornou algum candidato
+    if (!response.candidates || response.candidates.length === 0) {
+      const blockReason = response.promptFeedback?.blockReason;
+      if (blockReason) {
+        return new Response(JSON.stringify({ error: `A solicitação foi bloqueada por segurança. Motivo: ${blockReason}` }), {
+          status: 400, headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return new Response(JSON.stringify({ error: 'A API não retornou um candidato válido.' }), {
+        status: 500, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const candidate = response.candidates[0];
+    
+    // Verifica se o processamento foi interrompido por algum motivo
+    if (candidate.finishReason !== 'STOP' && candidate.finishReason !== 'MODEL_LENGTH') {
+       return new Response(JSON.stringify({ error: `O processamento foi interrompido. Motivo: ${candidate.finishReason}` }), {
+          status: 400, headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
     let editedImageBase64: string | null = null;
-    // A resposta pode conter múltiplas partes, precisamos encontrar a parte da imagem.
-    for (const part of response.candidates[0].content.parts) {
+    for (const part of candidate.content.parts) {
       if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
         editedImageBase64 = part.inlineData.data;
-        break; // Encontramos a imagem, podemos parar.
+        break;
       }
     }
 
     if (!editedImageBase64) {
-      // Se não houver imagem, verifique se há texto de bloqueio de segurança
-      const feedback = response.candidates?.[0]?.safetyRatings;
-      const blockReason = response.candidates?.[0]?.finishReason;
-      if (blockReason === 'SAFETY' || (feedback && feedback.some(r => r.blocked))) {
-         return new Response(JSON.stringify({ error: 'A imagem não pôde ser processada devido a políticas de segurança.' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      return new Response(JSON.stringify({ error: 'A API não retornou uma imagem editada.' }), {
+      return new Response(JSON.stringify({ error: 'A API processou a solicitação, mas não retornou uma imagem.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -94,7 +102,8 @@ export default async function handler(req: Request) {
   } catch (error) {
     console.error("Erro na função da API de edição de imagem:", error);
     const errorMessage = error instanceof Error ? error.message : 'Falha ao editar a imagem no servidor.';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    // Retorna uma mensagem de erro mais específica, se disponível
+    return new Response(JSON.stringify({ error: `Erro no servidor: ${errorMessage}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
