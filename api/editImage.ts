@@ -48,9 +48,12 @@ export default async function handler(req: Request) {
       
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [imagePart, textPart],
-      },
+      // CORREÇÃO: O modelo de edição de imagem espera o conteúdo formatado
+      // como uma mensagem de chat, dentro de um array e com um "role".
+      contents: [{
+        role: 'user',
+        parts: [imagePart, textPart]
+      }],
       config: {
         // O modelo de edição de imagem requer que ambos os tipos sejam especificados.
         responseModalities: [Modality.IMAGE, Modality.TEXT],
@@ -67,6 +70,16 @@ export default async function handler(req: Request) {
     }
 
     if (!editedImageBase64) {
+      // Se não houver imagem, verifique se há texto de bloqueio de segurança
+      const feedback = response.candidates?.[0]?.safetyRatings;
+      const blockReason = response.candidates?.[0]?.finishReason;
+      if (blockReason === 'SAFETY' || (feedback && feedback.some(r => r.blocked))) {
+         return new Response(JSON.stringify({ error: 'A imagem não pôde ser processada devido a políticas de segurança.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       return new Response(JSON.stringify({ error: 'A API não retornou uma imagem editada.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
