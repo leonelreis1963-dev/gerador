@@ -32,7 +32,7 @@ function App() {
       }
     } catch (err) {
       console.error(err);
-      setError('Falha ao gerar ideias. Verifique o console e a configuração da sua chave de API na Vercel. A chave foi adicionada corretamente nas Variáveis de Ambiente do projeto?');
+      setError('Falha ao gerar ideias. Verifique a configuração da sua chave de API na Vercel e os logs da função no dashboard da Vercel.');
     } finally {
       setIsLoading(false);
     }
@@ -53,15 +53,14 @@ function App() {
           </div>
 
           <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 mb-8 text-sm text-blue-200">
-            <h2 className="font-bold text-lg mb-2">Como Usar e Configurar na Vercel</h2>
+            <h2 className="font-bold text-lg mb-2">Como Usar e Configurar na Vercel (Método Seguro)</h2>
             <ol className="list-decimal list-inside space-y-2">
-              <li>Este código usa `process.env.API_KEY` para acessar sua chave da API Gemini.</li>
+              <li>Este projeto usa uma Função Serverless (em `/api/generate.ts`) para proteger sua chave de API. A chave NUNCA é exposta no navegador.</li>
               <li>Para funcionar na Vercel, vá para o dashboard do seu projeto.</li>
               <li>Acesse <span className="font-mono bg-gray-700 px-1 rounded">Settings</span> &gt; <span className="font-mono bg-gray-700 px-1 rounded">Environment Variables</span>.</li>
               <li>Adicione uma nova variável com o nome <code className="font-bold text-yellow-300 bg-gray-700 px-1.5 py-0.5 rounded">API_KEY</code>.</li>
               <li>No campo do valor, cole a sua chave de API do Google AI Studio.</li>
-              <li>**Importante:** Desmarque as caixas de "Development" e "Preview" se quiser que funcione apenas em produção. Deixe todas marcadas para testar em todos os ambientes.</li>
-              <li>Clique em "Save" e faça um novo deploy do seu projeto. Isso injetará a chave de forma segura!</li>
+              <li>Clique em "Save" e faça um novo deploy. A função no servidor usará a chave de forma segura.</li>
             </ol>
           </div>
 
