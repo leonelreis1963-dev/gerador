@@ -1,0 +1,5 @@
+{
+  "name": "Gerador de Ideias com Gemini API",
+  "description": "Um aplicativo de exemplo que gera ideias criativas usando a API do Google Gemini. Este projeto foi criado para demonstrar a forma correta e segura de configurar e usar chaves de API em um ambiente de produção como a Vercel, resolvendo problemas comuns de 'API key error'.",
+  "requestFramePermissions": []
+}
