@@ -2,22 +2,46 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Editor de Imagens Pixshop com Gemini</title>
+    <title>ZeroStudio Pro | AI Image Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.22.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
-</head>
-  <body class="bg-gray-900">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+      body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #050505;
+        color: #f1f5f9;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: #050505; }
+      ::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+      input[type=range]::-webkit-slider-thumb {
+        border: 2px solid white;
+        height: 14px;
+        width: 14px;
+        border-radius: 50%;
+        background: black;
+        cursor: pointer;
+        -webkit-appearance: none;
+        margin-top: -5px;
+      }
+    </style>
+  </head>
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

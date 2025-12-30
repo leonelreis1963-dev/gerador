@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef } from 'react';
 import { editImage } from './services/geminiService';
 import { Spinner } from './components/Spinner';
@@ -12,6 +13,13 @@ type ImageState = {
 const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+const PRESETS = [
+  { id: 'bg-remove', label: 'Remover Fundo', prompt: 'Remova o fundo desta imagem de forma profissional, mantendo apenas o objeto principal. O fundo deve ser totalmente transparente.', color: 'from-blue-500 to-indigo-600' },
+  { id: 'enhance', label: 'Melhorar Foto', prompt: 'Melhore a nitidez, o contraste e as cores desta imagem. Torne-a vibrante e profissional, removendo ruídos.', color: 'from-emerald-500 to-teal-600' },
+  { id: 'artistic', label: 'Estilo Artístico', prompt: 'Transforme esta imagem em uma pintura digital artística, com pinceladas visíveis e cores dramáticas.', color: 'from-amber-500 to-orange-600' },
+  { id: 'cyberpunk', label: 'Cyberpunk', prompt: 'Aplique um estilo cyberpunk neon, com tons de magenta e azul elétrico.', color: 'from-purple-500 to-pink-600' }
+];
+
 function App() {
   const [originalImage, setOriginalImage] = useState<ImageState | null>(null);
   const [editedImage, setEditedImage] = useState<string | null>(null);
@@ -24,11 +32,7 @@ function App() {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        setError(`O arquivo é muito grande. Por favor, envie uma imagem com menos de ${MAX_FILE_SIZE_MB}MB.`);
-        setOriginalImage(null);
-        if(fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+        setError(`Ops! A imagem é muito grande. O limite é ${MAX_FILE_SIZE_MB}MB.`);
         return;
       }
 
@@ -36,143 +40,187 @@ function App() {
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
         const [header, base64] = dataUrl.split(',');
-        const mimeType = header.match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const mimeType = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
         setOriginalImage({ base64, mimeType, dataUrl });
         setEditedImage(null);
         setError(null);
-        setPrompt('');
       };
-      reader.onerror = () => {
-        setError("Falha ao ler o arquivo de imagem.");
-      }
       reader.readAsDataURL(file);
     }
   };
 
-  const handleEdit = useCallback(async (editPrompt: string) => {
-    if (!originalImage) {
-      setError('Por favor, envie uma imagem primeiro.');
-      return;
-    }
+  const handleProcess = useCallback(async (customPrompt?: string) => {
+    const activePrompt = customPrompt || prompt;
+    if (!originalImage || !activePrompt.trim()) return;
 
     setIsLoading(true);
     setError(null);
-    setEditedImage(null);
 
     try {
-      const resultBase64 = await editImage(originalImage.base64, originalImage.mimeType, editPrompt);
+      const resultBase64 = await editImage(originalImage.base64, originalImage.mimeType, activePrompt);
       if (resultBase64) {
-        // A API de edição retorna PNG ou JPG, então vamos detectar o tipo para o link
-        const imageMimeType = editPrompt.toLowerCase().includes('transparente') ? 'image/png' : 'image/jpeg';
-        setEditedImage(`data:${imageMimeType};base64,${resultBase64}`);
-      } else {
-        throw new Error('A API não retornou uma imagem editada válida.');
+        setEditedImage(`data:image/png;base64,${resultBase64}`);
       }
-    } catch (err) {
-      console.error(err);
-      // Exibe a mensagem de erro específica vinda do backend
-      const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
-      setError(errorMessage);
+    } catch (err: any) {
+      setError(err.message || "Erro ao processar imagem.");
     } finally {
       setIsLoading(false);
     }
-  }, [originalImage]);
+  }, [originalImage, prompt]);
 
   const triggerFileSelect = () => fileInputRef.current?.click();
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 font-sans">
-      <main className="w-full max-w-5xl mx-auto">
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-purple-500/20 shadow-2xl shadow-purple-500/10 rounded-2xl p-8">
-          
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text mb-2">
-              Editor Pixshop Gemini
-            </h1>
-            <p className="text-gray-400">
-              Edite suas imagens com o poder da IA.
-            </p>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
+      {/* Navbar Minimalista */}
+      <nav className="border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-tr from-indigo-500 to-cyan-400 rounded-lg shadow-lg shadow-indigo-500/20"></div>
+            <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Pixshop AI</span>
           </div>
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
+            <a href="#" className="hover:text-white transition-colors">Galeria</a>
+            <a href="#" className="hover:text-white transition-colors">Recursos</a>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white transition-all">Limpar Tudo</button>
+          </div>
+        </div>
+      </nav>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Painel Esquerdo: Upload e Original */}
-            <div className="flex flex-col gap-4">
-              <h2 className="text-xl font-semibold text-center text-gray-300">1. Envie sua Imagem</h2>
-              <div 
-                className="h-64 w-full bg-gray-900/80 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
-                onClick={triggerFileSelect}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png, image/jpeg, image/webp"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                {originalImage ? (
-                  <img src={originalImage.dataUrl} alt="Original" className="max-h-full max-w-full object-contain rounded-md" />
-                ) : (
-                  <div className="text-center text-gray-500">
-                    <p>Clique ou arraste para enviar</p>
-                    <p className="text-sm">(PNG, JPG, WebP)</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 text-center -mt-2">Tamanho máximo: {MAX_FILE_SIZE_MB}MB</p>
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          
+          {/* Painel de Controle (Esquerda) */}
+          <div className="lg:col-span-5 space-y-8">
+            <section>
+              <h1 className="text-4xl font-extrabold mb-4 leading-tight">
+                Transforme imagens com <br/>
+                <span className="text-indigo-400">Inteligência Artificial</span>
+              </h1>
+              <p className="text-slate-400 text-lg">
+                Remova fundos, melhore a qualidade ou crie edições complexas em segundos usando o poder do Gemini.
+              </p>
+            </section>
+
+            {/* Upload Area */}
+            <div 
+              onClick={triggerFileSelect}
+              className={`relative group cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-300 h-72 flex flex-col items-center justify-center overflow-hidden
+                ${originalImage ? 'border-indigo-500/50 bg-slate-900' : 'border-slate-700 hover:border-indigo-500/50 bg-slate-900/50 hover:bg-slate-900'}`}
+            >
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
               
-              {originalImage && (
+              {originalImage ? (
                 <>
-                  <h2 className="text-xl font-semibold text-center text-gray-300 mt-4">2. Escolha uma Ação</h2>
-                   <div className="flex flex-col gap-3">
-                    <textarea
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder="Ou descreva sua edição aqui..."
-                      className="w-full h-20 bg-gray-900/80 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300 resize-none"
-                      disabled={isLoading}
-                    />
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button onClick={() => handleEdit('remova o fundo e mantenha o sujeito principal. o fundo deve ser transparente.')} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 transition-colors">Remover Fundo</button>
-                        <button onClick={() => handleEdit('melhore a qualidade e a nitidez da imagem, upscale para alta resolução.')} disabled={isLoading} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 transition-colors">Melhorar Qualidade</button>
-                     </div>
-                     <button onClick={() => handleEdit(prompt)} disabled={isLoading || !prompt.trim()} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300">
-                      Processar Edição
-                    </button>
-                   </div>
+                  <img src={originalImage.dataUrl} className="w-full h-full object-contain p-4" alt="Preview" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <span className="text-white font-medium">Trocar Imagem</span>
+                  </div>
                 </>
+              ) : (
+                <div className="text-center p-6">
+                  <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <svg className="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  </div>
+                  <p className="font-semibold text-slate-200">Clique para fazer upload</p>
+                  <p className="text-sm text-slate-500 mt-1">PNG, JPG ou WebP até 4MB</p>
+                </div>
               )}
             </div>
 
-            {/* Painel Direito: Resultado */}
-            <div className="flex flex-col gap-4">
-              <h2 className="text-xl font-semibold text-center text-gray-300">Resultado</h2>
-              <div className="h-full min-h-[360px] w-full bg-gray-900/50 rounded-lg border border-gray-700/50 flex flex-col items-center justify-center p-4">
-                {isLoading && <Spinner />}
-                {error && <p className="text-red-400 text-center px-4 py-2 bg-red-900/20 rounded-lg border border-red-500/30">{error}</p>}
-                {editedImage && !isLoading && !error && (
-                  <div className="flex flex-col items-center gap-4">
-                    <img src={editedImage} alt="Imagem editada por IA" className="rounded-lg max-w-full h-auto shadow-lg" />
+            {/* Ações e Prompts */}
+            {originalImage && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-2 gap-3">
+                  {PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => handleProcess(preset.prompt)}
+                      disabled={isLoading}
+                      className={`p-3 rounded-xl border border-slate-700 bg-slate-900 hover:border-indigo-500/50 text-left transition-all hover:shadow-lg hover:shadow-indigo-500/5 disabled:opacity-50`}
+                    >
+                      <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${preset.color} mb-2`}></div>
+                      <span className="text-sm font-bold text-slate-200">{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Descreva uma edição customizada..."
+                    className="w-full h-32 bg-slate-900 border border-slate-700 rounded-2xl p-4 text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none resize-none placeholder:text-slate-600 transition-all"
+                  />
+                  <button
+                    onClick={() => handleProcess()}
+                    disabled={isLoading || !prompt.trim()}
+                    className="absolute bottom-4 right-4 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-indigo-600/20 disabled:opacity-50 transition-all active:scale-95"
+                  >
+                    Editar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Resultado (Direita) */}
+          <div className="lg:col-span-7 flex flex-col h-full">
+            <div className="flex-1 rounded-3xl bg-slate-900/40 border border-slate-800 min-h-[500px] relative overflow-hidden flex flex-col items-center justify-center p-8">
+              {isLoading ? (
+                <div className="text-center">
+                  <Spinner />
+                  <p className="mt-4 text-indigo-400 font-medium animate-pulse">A IA está processando sua imagem...</p>
+                </div>
+              ) : error ? (
+                <div className="max-w-md text-center p-8 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                  <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <h3 className="text-lg font-bold text-red-400 mb-2">Erro na Requisição</h3>
+                  <p className="text-red-300/80 text-sm">{error}</p>
+                </div>
+              ) : editedImage ? (
+                <div className="w-full h-full flex flex-col items-center gap-6">
+                  <div className="relative group flex-1 w-full flex items-center justify-center">
+                    <img src={editedImage} className="max-h-full max-w-full rounded-2xl shadow-2xl object-contain" alt="Resultado" />
+                  </div>
+                  <div className="flex gap-4">
                     <a
                       href={editedImage}
-                      download={`pixshop-edit-${Date.now()}.png`}
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-5 rounded-lg transition-colors duration-300 mt-2"
+                      download={`pixshop-ai-${Date.now()}.png`}
+                      className="bg-white text-slate-950 px-8 py-3 rounded-2xl font-bold hover:bg-indigo-50 transition-colors shadow-xl"
                     >
-                      Download
+                      Baixar Imagem
                     </a>
                   </div>
-                )}
-                {!isLoading && !error && !editedImage && (
-                  <p className="text-gray-500 text-center">O resultado da sua edição aparecerá aqui.</p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg className="w-10 h-10 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                  </div>
+                  <p className="text-slate-500 text-lg font-medium">O resultado aparecerá aqui</p>
+                  <p className="text-slate-600 text-sm mt-2">Envie uma imagem e escolha uma edição para começar.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
-       <footer className="w-full max-w-5xl mx-auto text-center mt-8 text-gray-500">
-        <a href="https://github.com/google/genai-js" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-purple-400 transition-colors">
+
+      <footer className="max-w-7xl mx-auto px-6 py-12 border-t border-slate-900 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="flex items-center gap-6 text-slate-500 text-sm">
+          <span>&copy; 2024 Pixshop AI</span>
+          <a href="#" className="hover:text-slate-300">Privacidade</a>
+          <a href="#" className="hover:text-slate-300">Termos</a>
+        </div>
+        <a 
+          href="https://github.com/google/genai-js" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center gap-2 text-slate-400 hover:text-indigo-400 transition-colors bg-slate-900/50 px-4 py-2 rounded-full border border-slate-800"
+        >
           <GithubIcon />
-          <span>Powered by Google Gemini API</span>
+          <span className="text-sm font-medium">Powered by Gemini 2.5 Flash</span>
         </a>
       </footer>
     </div>

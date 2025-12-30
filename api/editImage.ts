@@ -36,7 +36,7 @@ export async function POST(req: Request) {
           
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash-image',
-          contents: [{ role: 'user', parts: [imagePart, textPart] }],
+          contents: { parts: [imagePart, textPart] },
           config: {
             responseModalities: [Modality.IMAGE, Modality.TEXT],
           },
